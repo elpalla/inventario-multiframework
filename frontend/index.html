@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventario · VoltRider Motors</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { --vr: #0f766e; }
+    body { background: #f3f6f6; }
+    .navbar-vr { background: #0b1f1e; }
+    .btn-vr { background: var(--vr); color: #fff; border: 0; }
+    .btn-vr:hover { background: #0d5f59; color: #fff; }
+    .kpi { border-left: 4px solid var(--vr); }
+    .live-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; display: inline-block; animation: pulse 2s infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+    #toasts { position: fixed; top: 1rem; right: 1rem; z-index: 2000; width: min(360px, 92vw); }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-dark navbar-vr mb-4">
+  <div class="container">
+    <span class="navbar-brand fw-semibold">⚡ VoltRider Motors <span class="small fw-normal opacity-75">· Inventario global</span></span>
+    <div class="d-flex align-items-center gap-2">
+      <span id="userLabel" class="text-white small d-none"></span>
+      <button id="btnLogin" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#loginModal">Iniciar sesión</button>
+      <button id="btnLogout" class="btn btn-sm btn-outline-light d-none">Cerrar sesión</button>
+    </div>
+  </div>
+</nav>
+
+<div id="toasts"></div>
+
+<main class="container pb-5">
+  <!-- Tarjetas de indicadores (GET /api/reportes/resumen) -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card kpi shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small">Referencias</div><div id="kpiRef" class="fs-3 fw-semibold">–</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small">Unidades en stock</div><div id="kpiUni" class="fs-3 fw-semibold">–</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small">Valor inventario (USD)</div><div id="kpiVal" class="fs-3 fw-semibold">–</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi shadow-sm h-100"><div class="card-body">
+      <div class="text-muted small">Con stock bajo</div><div id="kpiBajo" class="fs-3 fw-semibold text-danger">–</div></div></div></div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card shadow-sm mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-5">
+        <label class="form-label small mb-1" for="fQ">Buscar (SKU o nombre)</label>
+        <input id="fQ" type="search" class="form-control" placeholder="Ej: Pulse, VR-AUT...">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label small mb-1" for="fCat">Categoría</label>
+        <select id="fCat" class="form-select"><option value="">Todas</option></select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label small mb-1" for="fPlanta">Planta</label>
+        <select id="fPlanta" class="form-select"><option value="">Todas</option></select>
+      </div>
+      <div class="col-12 col-md-1 d-grid">
+        <button id="btnLimpiar" class="btn btn-outline-secondary">Limpiar</button>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- Tabla de productos (GET /api/productos) -->
+  <div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <h2 class="h5 mb-0">Productos <span id="contador" class="badge text-bg-secondary ms-1">0</span></h2>
+      <span class="small text-muted"><span class="live-dot me-1"></span>Actualización automática cada 10 s · <span id="ultima">–</span></span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>SKU</th><th>Producto</th><th class="d-none d-md-table-cell">Categoría</th><th class="d-none d-lg-table-cell">Planta</th>
+              <th class="text-end">Precio (USD)</th><th class="text-end">Stock</th><th class="text-end">Acción</th></tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="7" class="text-center py-4 text-muted">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal Login (POST /api/login -> JWT) -->
+<div class="modal fade" id="loginModal" tabindex="-1">
+  <div class="modal-dialog"><form id="loginForm" class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Iniciar sesión</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted">Para descontar inventario se requiere un token JWT.</p>
+      <div class="mb-3"><label class="form-label" for="lEmail">Correo</label>
+        <input id="lEmail" type="email" class="form-control" value="admin@voltrider.com" required></div>
+      <div class="mb-2"><label class="form-label" for="lPass">Contraseña</label>
+        <input id="lPass" type="password" class="form-control" value="Admin12345" required></div>
+      <div id="loginError" class="text-danger small d-none"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-vr">Ingresar</button></div>
+  </form></div>
+</div>
+
+<!-- Modal Descontar (POST /api/productos/descontar) -->
+<div class="modal fade" id="descModal" tabindex="-1">
+  <div class="modal-dialog"><form id="descForm" class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Descontar unidades</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="mb-1"><strong id="dNombre"></strong></p>
+      <p class="small text-muted">Stock actual: <span id="dStock"></span></p>
+      <label class="form-label" for="dCant">Cantidad a descontar</label>
+      <input id="dCant" type="number" min="1" step="1" value="1" class="form-control" required>
+    </div>
+    <div class="modal-footer"><button class="btn btn-vr">Confirmar</button></div>
+  </form></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
